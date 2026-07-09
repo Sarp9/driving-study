@@ -37,64 +37,67 @@
     </style>
 </head>
 <body>
-
     <div id="videoContainer">
         <video id="simulationPlayer" controls autoplay></video>
     </div>
     <div id="statusBar">Loading clip sequence...</div>
 
     <script>
-        // 1. Parse group ID from URL query parameters
+        // 1. Parse group ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const groupID = urlParams.get('group') || "1";
 
-        // 2. Video pools — Standardised names without spaces to guarantee server uptime
+        // 2. Google Drive streaming URLs
+        function driveURL(id) {
+            return `https://drive.google.com/uc?export=download&id=${id}`;
+        }
+
         const unfaithfulPool = [
-            "videos/clip1_unfaithful.mp4",
-            "videos/clip2_unfaithful.mp4",
-            "videos/clip3_unfaithful.mp4",
-            "videos/clip4_unfaithful.mp4",
-            "videos/clip5_unfaithful.mp4",
-            "videos/clip6_unfaithful.mp4",
-            "videos/clip7_unfaithful.mp4",
-            "videos/clip8_unfaithful.mp4",
-            "videos/clip9_unfaithful.mp4",
-            "videos/clip10_unfaithful.mp4"
+            driveURL("1lBolPxj0naQ6EpZX8YN3OPNKVmkFD4mf"), // clip1_unfaithful
+            driveURL("12f1sK4ISp2Fk9ESo1T0YtkBjUj5MdLME"), // clip2_unfaithful
+            driveURL("1uqnNUgofWkRQLU5JbQoeVRZAmLGEpDpY"), // clip3_unfaithful
+            driveURL("1mSEkcDeYi8EpR7Y-pUVc2PqWi0fMAmh-"), // clip4_unfaithful
+            driveURL("1nsPdnCOabTdWIw_8rfXPR0wytzQK1UAC"), // clip5_unfaithful
+            driveURL("1PhDqKSaP5joyqWYHqo2Gc82eY0uXZjyH"), // clip6_unfaithful
+            driveURL("1_1S4NOTAFUs3YVYEHtLOxYs-gYF9JTJ0"), // clip7_unfaithful
+            driveURL("1BKHckPSzGETivAwchAOUYB2ocZGziHAu"), // clip8_unfaithful
+            driveURL("1XOVy1CMjCD9amtXPj0lVBnBjWj_trDkc"), // clip9_unfaithful
+            driveURL("16xFWsmgYiNAjGuvUq_8nXLSvfRidvG7H")  // clip10_unfaithful
         ];
 
         const faithfulPool = [
-            "videos/clip1_faithful.mp4",
-            "videos/clip2_faithful.mp4",
-            "videos/clip3_faithful.mp4",
-            "videos/clip4_faithful.mp4",
-            "videos/clip5_faithful.mp4",
-            "videos/clip6_faithful.mp4",
-            "videos/clip7_faithful.mp4",
-            "videos/clip8_faithful.mp4",
-            "videos/clip9_faithful.mp4",
-            "videos/clip10_faithful.mp4"
+            driveURL("1AnxolUWBeR0mPeAsVejZCrJPPoUjmsq1"), // clip1_faithful
+            driveURL("1TphWA59UA8uAAjirJmoR2_rxKK3Llm_O"), // clip2_faithful
+            driveURL("1XrBqpQiCaDNDgjGLOM4gxDUgpGcLWmoh"), // clip3_faithful
+            driveURL("1teKN8Q79fiw92bbY3CF-JVSWkrx6RwmW"), // clip4_faithful
+            driveURL("1tKyrGiQtjOgv8gorYBrwyuq4G_8nfER_"), // clip5_faithful
+            driveURL("1qI05N-wBY0ek75Y50v725U82VTTv0g8y"), // clip6_faithful
+            driveURL("1a85R8w3PW6iLbONUVkRpGs7LXlbzXj3p"), // clip7_faithful
+            driveURL("1_DsEW14o8DoKEX1Mk_o82rdisJjlWwLc"), // clip8_faithful
+            driveURL("1DEzWq03Tmws0t1WFmeidGxe-ZJCTJYnL"), // clip9_faithful
+            driveURL("1C1g92rz-HlGaauvL8T1UhTAmTNLJ4n3k")  // clip10_faithful
         ];
 
-        // 3. COMPLETE x% SCALE: Maps all 11 conditions (0 to 100% unfaithful variants)
+        // 3. Group unfaithful counts
         const unfaithfulCounts = {
-            "1": 0,   // 0% Unfaithful (All 10 clips Faithful)
-            "2": 1,   // 10% Unfaithful
-            "3": 2,   // 20% Unfaithful
-            "4": 3,   // 30% Unfaithful
-            "5": 4,   // 40% Unfaithful
-            "6": 5,   // 50% Unfaithful
-            "7": 6,   // 60% Unfaithful
-            "8": 7,   // 70% Unfaithful
-            "9": 8,   // 80% Unfaithful
-            "10": 9,  // 90% Unfaithful
-            "11": 10  // 100% Unfaithful (All 10 clips Unfaithful)
+            "1": 0,
+            "2": 1,
+            "3": 2,
+            "4": 3,
+            "5": 4,
+            "6": 5,
+            "7": 6,
+            "8": 7,
+            "9": 8,
+            "10": 9,
+            "11": 10
         };
 
-        const unfaithfulCount = unfaithfulCounts[groupID] !== undefined 
-            ? unfaithfulCounts[groupID] 
+        const unfaithfulCount = unfaithfulCounts[groupID] !== undefined
+            ? unfaithfulCounts[groupID]
             : 0;
 
-        // 4. Fisher-Yates shuffle algorithm
+        // 4. Fisher-Yates shuffle
         function shuffle(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -103,93 +106,81 @@
             return array;
         }
 
-        // 5. Randomly pick which video sequence slots will use the Unfaithful pool
-        let scenarioIndices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-        shuffle(scenarioIndices);
-        const unfaithfulIndices = scenarioIndices.slice(0, unfaithfulCount);
+        // 5. Randomly pick which videos are unfaithful
+        const shuffledUnfaithful = shuffle([...unfaithfulPool]);
+        const shuffledFaithful = shuffle([...faithfulPool]);
 
-        // 6. Assemble the baseline variant selection playlist
-        let finalPlaylist = [];
-        for (let i = 0; i < 10; i++) {
-            if (unfaithfulIndices.includes(i)) {
-                finalPlaylist.push(unfaithfulPool[i]);
-            } else {
-                finalPlaylist.push(faithfulPool[i]);
-            }
-        }
+        const selectedUnfaithful = shuffledUnfaithful.slice(0, unfaithfulCount);
+        const selectedFaithful = shuffledFaithful.slice(0, 10 - unfaithfulCount);
 
-        // 7. SUPERVISOR LOGIC ENFORCEMENT: Force 1 random unfaithful video to the start, shuffle remaining 9
-        let shuffledPlaylist = [];
-        let chosenUnfaithfulIndices = [];
-        
-        finalPlaylist.forEach((track, index) => {
-            if (track.includes('unfaithful')) chosenUnfaithfulIndices.push(index);
-        });
-
-        if (chosenUnfaithfulIndices.length > 0) {
-            // Select exactly one unfaithful video at random to serve as the baseline opening track
-            const randomUnfaithfulTargetIndex = chosenUnfaithfulIndices[Math.floor(Math.random() * chosenUnfaithfulIndices.length)];
-            const startingUnfaithfulTrack = finalPlaylist[randomUnfaithfulTargetIndex];
-            
-            // Remove the selected opening track from the primary array processing pool
-            finalPlaylist.splice(randomUnfaithfulTargetIndex, 1);
-            
-            // Shuffle the remaining 9 items thoroughly
-            shuffle(finalPlaylist);
-            
-            // Reconstruct the loop sequence with the unfaithful item locked to index 0
-            shuffledPlaylist = [startingUnfaithfulTrack, ...finalPlaylist];
+        // 6. If group has unfaithful videos, force one to start first
+        let shuffledPlaylist;
+        if (selectedUnfaithful.length > 0) {
+            const firstUnfaithful = selectedUnfaithful[0];
+            const rest = shuffle([...selectedFaithful, ...selectedUnfaithful.slice(1)]);
+            shuffledPlaylist = [firstUnfaithful, ...rest];
         } else {
-            // Safe fallback rule for Group 1 (0% unfaithful): normal shuffle of the clean assets
-            shuffledPlaylist = shuffle(finalPlaylist);
+            shuffledPlaylist = shuffle([...selectedFaithful]);
         }
 
-        // --- Cross-tab Tracking Session Preservation Cache ---
+        // 7. Save to localStorage for rewatch
         localStorage.setItem('activeSimulationPlaylist', JSON.stringify(shuffledPlaylist));
 
-        // 8. String tracking encoder for space-free format tracking
-        function extractClipLabel(path) {
-            const fileName = path.split('/').pop(); // e.g., "clip4_unfaithful.mp4"
-            const number = fileName.match(/\d+/)[0]; // Extracts "4"
-            const type = fileName.includes('unfaithful') ? 'U' : 'F'; // Extracts 'U' or 'F'
-            return `${number}${type}`; // Returns "4U"
+        // 8. Clean label extractor
+        function extractClipLabel(url) {
+            const id = url.split('id=')[1];
+            const allIDs = {
+                "1AnxolUWBeR0mPeAsVejZCrJPPoUjmsq1": "1F",
+                "1TphWA59UA8uAAjirJmoR2_rxKK3Llm_O": "2F",
+                "1XrBqpQiCaDNDgjGLOM4gxDUgpGcLWmoh": "3F",
+                "1teKN8Q79fiw92bbY3CF-JVSWkrx6RwmW": "4F",
+                "1tKyrGiQtjOgv8gorYBrwyuq4G_8nfER_": "5F",
+                "1qI05N-wBY0ek75Y50v725U82VTTv0g8y": "6F",
+                "1a85R8w3PW6iLbONUVkRpGs7LXlbzXj3p": "7F",
+                "1_DsEW14o8DoKEX1Mk_o82rdisJjlWwLc": "8F",
+                "1DEzWq03Tmws0t1WFmeidGxe-ZJCTJYnL": "9F",
+                "1C1g92rz-HlGaauvL8T1UhTAmTNLJ4n3k": "10F",
+                "1lBolPxj0naQ6EpZX8YN3OPNKVmkFD4mf": "1U",
+                "12f1sK4ISp2Fk9ESo1T0YtkBjUj5MdLME": "2U",
+                "1uqnNUgofWkRQLU5JbQoeVRZAmLGEpDpY": "3U",
+                "1mSEkcDeYi8EpR7Y-pUVc2PqWi0fMAmh-": "4U",
+                "1nsPdnCOabTdWIw_8rfXPR0wytzQK1UAC": "5U",
+                "1PhDqKSaP5joyqWYHqo2Gc82eY0uXZjyH": "6U",
+                "1_1S4NOTAFUs3YVYEHtLOxYs-gYF9JTJ0": "7U",
+                "1BKHckPSzGETivAwchAOUYB2ocZGziHAu": "8U",
+                "1XOVy1CMjCD9amtXPj0lVBnBjWj_trDkc": "9U",
+                "16xFWsmgYiNAjGuvUq_8nXLSvfRidvG7H": "10U"
+            };
+            return allIDs[id] || id;
         }
 
-        const videoOrderTrackingArray = shuffledPlaylist.map(track => extractClipLabel(track));
+        const videoOrderTrackingArray = shuffledPlaylist.map(url => extractClipLabel(url));
 
         let currentClipIndex = 0;
         const player = document.getElementById('simulationPlayer');
         const statusText = document.getElementById('statusBar');
 
-        // 9. Playback loop cycle state manager
+        // 9. Playback controller
         function playNextClip() {
             if (currentClipIndex < shuffledPlaylist.length) {
                 statusText.innerText = `Displaying Scenario ${currentClipIndex + 1} of ${shuffledPlaylist.length}`;
                 player.src = shuffledPlaylist[currentClipIndex];
                 player.load();
                 player.play().catch(err => {
-                    console.log("Awaiting manual user initial interaction bypass click.");
+                    console.log("Awaiting user interaction.");
                 });
             } else {
                 statusText.innerText = "Simulation complete. Returning to evaluation system...";
 
-                const sessionID = Date.now().toString(36);
+                localStorage.setItem('activeSimulationPlaylist', JSON.stringify(shuffledPlaylist));
 
-                // Local API fallback catch routing
-                fetch(`/save_session?id=${sessionID}&playlist=${encodeURIComponent(JSON.stringify(shuffledPlaylist))}`)
-                    .then(() => { redirectUser(sessionID); })
-                    .catch(() => { redirectUser(sessionID); }); 
+                const targetReturnURL = "https://qualtricsxm44bc3wkyn.qualtrics.com/jfe/form/SV_b8aFNKmGHwOuj5Q" +
+                    `?videoOrder=${encodeURIComponent(videoOrderTrackingArray.join(','))}`;
+
+                setTimeout(() => {
+                    window.location.href = targetReturnURL;
+                }, 1500);
             }
-        }
-
-        function redirectUser(sessionID) {
-            const targetReturnURL = "https://qualtricsxm44bc3wkyn.qualtrics.com/jfe/form/SV_b8aFNKmGHwOuj5Q" +
-                `?videoOrder=${encodeURIComponent(videoOrderTrackingArray.join(','))}` +
-                `&simSession=${sessionID}`;
-
-            setTimeout(() => {
-                window.location.href = targetReturnURL;
-            }, 1500);
         }
 
         player.addEventListener('ended', () => {

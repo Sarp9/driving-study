@@ -42,7 +42,6 @@
     </style>
 </head>
 <body>
-
     <h2 id="clipHeader">Loading Review Clip...</h2>
     <div id="videoContainer">
         <video id="reviewPlayer" controls autoplay></video>
@@ -61,8 +60,9 @@
             header.innerText = "Error: Missing Data";
             errorDiv.innerText = "Could not load this scenario. Please close this tab and continue your survey.";
         } else {
-            const cachedPlaylistStr = localStorage.getItem('driving_study_playlist');
-            
+            // Fixed key — matches what index.html saves
+            const cachedPlaylistStr = localStorage.getItem('activeSimulationPlaylist');
+
             if (cachedPlaylistStr) {
                 const cachedPlaylist = JSON.parse(cachedPlaylistStr);
                 const playlistIndex = parseInt(clipTarget, 10) - 1;
