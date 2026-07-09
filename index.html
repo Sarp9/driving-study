@@ -37,21 +37,23 @@
     </style>
 </head>
 <body>
+
     <div id="videoContainer">
         <video id="simulationPlayer" controls autoplay></video>
     </div>
     <div id="statusBar">Loading clip sequence...</div>
 
     <script>
-        // 1. Parse group ID from URL
+        // 1. Parse group ID from URL query parameters
         const urlParams = new URLSearchParams(window.location.search);
         const groupID = urlParams.get('group') || "1";
 
-        // 2. Google Drive streaming URLs
+        // 2. Google Drive streaming URL builder
         function driveURL(id) {
             return `https://drive.google.com/uc?export=download&id=${id}`;
         }
 
+        // 3. Video pools using Google Drive IDs
         const unfaithfulPool = [
             driveURL("1lBolPxj0naQ6EpZX8YN3OPNKVmkFD4mf"), // clip1_unfaithful
             driveURL("12f1sK4ISp2Fk9ESo1T0YtkBjUj5MdLME"), // clip2_unfaithful
@@ -78,26 +80,26 @@
             driveURL("1C1g92rz-HlGaauvL8T1UhTAmTNLJ4n3k")  // clip10_faithful
         ];
 
-        // 3. Group unfaithful counts
+        // 4. COMPLETE x% SCALE: Maps all 11 conditions (0 to 100% unfaithful)
         const unfaithfulCounts = {
-            "1": 0,
-            "2": 1,
-            "3": 2,
-            "4": 3,
-            "5": 4,
-            "6": 5,
-            "7": 6,
-            "8": 7,
-            "9": 8,
-            "10": 9,
-            "11": 10
+            "1": 0,   // 0% Unfaithful
+            "2": 1,   // 10% Unfaithful
+            "3": 2,   // 20% Unfaithful
+            "4": 3,   // 30% Unfaithful
+            "5": 4,   // 40% Unfaithful
+            "6": 5,   // 50% Unfaithful
+            "7": 6,   // 60% Unfaithful
+            "8": 7,   // 70% Unfaithful
+            "9": 8,   // 80% Unfaithful
+            "10": 9,  // 90% Unfaithful
+            "11": 10  // 100% Unfaithful
         };
 
         const unfaithfulCount = unfaithfulCounts[groupID] !== undefined
             ? unfaithfulCounts[groupID]
             : 0;
 
-        // 4. Fisher-Yates shuffle
+        // 5. Fisher-Yates shuffle algorithm
         function shuffle(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -106,27 +108,55 @@
             return array;
         }
 
-        // 5. Randomly pick which videos are unfaithful
-        const shuffledUnfaithful = shuffle([...unfaithfulPool]);
-        const shuffledFaithful = shuffle([...faithfulPool]);
+        // 6. Randomly pick which video sequence slots will use the Unfaithful pool
+        let scenarioIndices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        shuffle(scenarioIndices);
+        const unfaithfulIndices = scenarioIndices.slice(0, unfaithfulCount);
 
-        const selectedUnfaithful = shuffledUnfaithful.slice(0, unfaithfulCount);
-        const selectedFaithful = shuffledFaithful.slice(0, 10 - unfaithfulCount);
-
-        // 6. If group has unfaithful videos, force one to start first
-        let shuffledPlaylist;
-        if (selectedUnfaithful.length > 0) {
-            const firstUnfaithful = selectedUnfaithful[0];
-            const rest = shuffle([...selectedFaithful, ...selectedUnfaithful.slice(1)]);
-            shuffledPlaylist = [firstUnfaithful, ...rest];
-        } else {
-            shuffledPlaylist = shuffle([...selectedFaithful]);
+        // 7. Assemble the baseline variant selection playlist
+        let finalPlaylist = [];
+        for (let i = 0; i < 10; i++) {
+            if (unfaithfulIndices.includes(i)) {
+                finalPlaylist.push(unfaithfulPool[i]);
+            } else {
+                finalPlaylist.push(faithfulPool[i]);
+            }
         }
 
-        // 7. Save to localStorage for rewatch
+        // 8. SUPERVISOR LOGIC: Force 1 random unfaithful video to start, shuffle remaining 9
+        let shuffledPlaylist = [];
+        let chosenUnfaithfulIndices = [];
+
+        finalPlaylist.forEach((track, index) => {
+            if (track.includes('1lBolPxj') || unfaithfulPool.includes(track)) {
+                chosenUnfaithfulIndices.push(index);
+            }
+        });
+
+        // Rebuild check using pool membership
+        chosenUnfaithfulIndices = [];
+        finalPlaylist.forEach((track, index) => {
+            if (unfaithfulPool.includes(track)) {
+                chosenUnfaithfulIndices.push(index);
+            }
+        });
+
+        if (chosenUnfaithfulIndices.length > 0) {
+            const randomUnfaithfulTargetIndex = chosenUnfaithfulIndices[
+                Math.floor(Math.random() * chosenUnfaithfulIndices.length)
+            ];
+            const startingUnfaithfulTrack = finalPlaylist[randomUnfaithfulTargetIndex];
+            finalPlaylist.splice(randomUnfaithfulTargetIndex, 1);
+            shuffle(finalPlaylist);
+            shuffledPlaylist = [startingUnfaithfulTrack, ...finalPlaylist];
+        } else {
+            shuffledPlaylist = shuffle([...finalPlaylist]);
+        }
+
+        // 9. Save to localStorage for rewatch access
         localStorage.setItem('activeSimulationPlaylist', JSON.stringify(shuffledPlaylist));
 
-        // 8. Clean label extractor
+        // 10. Label extractor using Drive ID lookup table
         function extractClipLabel(url) {
             const id = url.split('id=')[1];
             const allIDs = {
@@ -160,14 +190,14 @@
         const player = document.getElementById('simulationPlayer');
         const statusText = document.getElementById('statusBar');
 
-        // 9. Playback controller
+        // 11. Playback loop cycle state manager
         function playNextClip() {
             if (currentClipIndex < shuffledPlaylist.length) {
                 statusText.innerText = `Displaying Scenario ${currentClipIndex + 1} of ${shuffledPlaylist.length}`;
                 player.src = shuffledPlaylist[currentClipIndex];
                 player.load();
                 player.play().catch(err => {
-                    console.log("Awaiting user interaction.");
+                    console.log("Awaiting manual user initial interaction bypass click.");
                 });
             } else {
                 statusText.innerText = "Simulation complete. Returning to evaluation system...";
