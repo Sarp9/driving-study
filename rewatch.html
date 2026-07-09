@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Review Scenario Clip</title>
+    <style>
+        body {
+            background-color: #111;
+            color: #eee;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #videoContainer {
+            width: 85%;
+            max-width: 900px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        video {
+            width: 100%;
+            display: block;
+        }
+        h2 {
+            margin-bottom: 20px;
+            font-weight: 300;
+            color: #aaa;
+        }
+        #errorMessage {
+            text-align: center;
+            padding: 20px;
+            color: #ff6b6b;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+    <h2 id="clipHeader">Loading Review Clip...</h2>
+    <div id="videoContainer">
+        <video id="reviewPlayer" controls autoplay></video>
+    </div>
+    <div id="errorMessage"></div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const clipTarget = urlParams.get('clip');
+
+        const player = document.getElementById('reviewPlayer');
+        const header = document.getElementById('clipHeader');
+        const errorDiv = document.getElementById('errorMessage');
+
+        if (!clipTarget) {
+            header.innerText = "Error: Missing Data";
+            errorDiv.innerText = "Could not load this scenario. Please close this tab and continue your survey.";
+        } else {
+            const cachedPlaylistStr = localStorage.getItem('driving_study_playlist');
+            
+            if (cachedPlaylistStr) {
+                const cachedPlaylist = JSON.parse(cachedPlaylistStr);
+                const playlistIndex = parseInt(clipTarget, 10) - 1;
+                const targetVideoPath = cachedPlaylist[playlistIndex];
+
+                if (targetVideoPath) {
+                    header.innerText = `Reviewing Scenario ${clipTarget}`;
+                    player.src = targetVideoPath;
+                    player.load();
+                } else {
+                    header.innerText = "Error: Scenario Not Found";
+                    errorDiv.innerText = "Please close this tab and continue your survey.";
+                }
+            } else {
+                header.innerText = "Error: Session Expired";
+                errorDiv.innerText = "Your session could not be retrieved. Please close this tab and continue your survey.";
+            }
+        }
+    </script>
+</body>
+</html>
