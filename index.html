@@ -46,7 +46,7 @@
     <script>
         // 1. Parse group ID from URL query parameters
         const urlParams = new URLSearchParams(window.location.search);
-        const groupID = urlParams.get('group') || "1";
+        const groupID = urlParams.get('group') || String(Math.floor(Math.random() * 11) + 1);
 
         // 2. Video pools — hosted on Archive.org
         const base = "https://archive.org/download/clip10_faithful/";
