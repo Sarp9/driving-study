@@ -39,7 +39,7 @@
 <body>
 
     <div id="videoContainer">
-        <video id="simulationPlayer" controls autoplay></video>
+        <video id="simulationPlayer" controls autoplay playsinline></video>
     </div>
     <div id="statusBar">Loading clip sequence...</div>
 
@@ -48,8 +48,8 @@
         const urlParams = new URLSearchParams(window.location.search);
         const groupID = urlParams.get('group') || String(Math.floor(Math.random() * 11) + 1);
 
-        // 2. Video pools — hosted on Archive.org
-        const base = "https://archive.org/download/clip10_faithful/";
+        // 2. Video pools — hosted on Archive.org (Updated to new av_study_20clips repository)
+        const base = "https://archive.org/download/av_study_20clips/";
 
         const unfaithfulPool = [
             base + "clip1_unfaithful.mp4",
