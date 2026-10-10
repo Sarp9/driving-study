@@ -44,59 +44,32 @@
     <div id="statusBar">Loading clip sequence...</div>
 
     <script>
-        // 1. Parse group ID from URL query parameters
+        // 1. Condition (group) from the URL, or random 1-11 if missing/invalid
         const urlParams = new URLSearchParams(window.location.search);
-        const groupID = urlParams.get('group') || String(Math.floor(Math.random() * 11) + 1);
-
-        // 2. Video pools — hosted on Archive.org (Updated to new av_study_20clips repository)
-        const base = "https://archive.org/download/av_study_20clips/";
-
-        const unfaithfulPool = [
-            base + "clip1_unfaithful.mp4",
-            base + "clip2_unfaithful.mp4",
-            base + "clip3_unfaithful.mp4",
-            base + "clip4_unfaithful.mp4",
-            base + "clip5_unfaithful.mp4",
-            base + "clip6_unfaithful.mp4",
-            base + "clip7_unfaithful.mp4",
-            base + "clip8_unfaithful.mp4",
-            base + "clip9_unfaithful.mp4",
-            base + "clip10_unfaithful.mp4"
-        ];
-
-        const faithfulPool = [
-            base + "clip1_faithful.mp4",
-            base + "clip2_faithful.mp4",
-            base + "clip3_faithful.mp4",
-            base + "clip4_faithful.mp4",
-            base + "clip5_faithful.mp4",
-            base + "clip6_faithful.mp4",
-            base + "clip7_faithful.mp4",
-            base + "clip8_faithful.mp4",
-            base + "clip9_faithful.mp4",
-            base + "clip10_faithful.mp4"
-        ];
-
-        // 3. COMPLETE x% SCALE: Maps all 11 conditions (0 to 100% unfaithful variants)
+        let groupID = urlParams.get('group');
         const unfaithfulCounts = {
-            "1": 0,   // 0% Unfaithful (All 10 clips Faithful)
-            "2": 1,   // 10% Unfaithful
-            "3": 2,   // 20% Unfaithful
-            "4": 3,   // 30% Unfaithful
-            "5": 4,   // 40% Unfaithful
-            "6": 5,   // 50% Unfaithful
-            "7": 6,   // 60% Unfaithful
-            "8": 7,   // 70% Unfaithful
-            "9": 8,   // 80% Unfaithful
-            "10": 9,  // 90% Unfaithful
-            "11": 10  // 100% Unfaithful (All 10 clips Unfaithful)
+            "1": 0,   // 0% unfaithful
+            "2": 1,   // 10%
+            "3": 2,   // 20%
+            "4": 3,   // 30%
+            "5": 4,   // 40%
+            "6": 5,   // 50%
+            "7": 6,   // 60%
+            "8": 7,   // 70%
+            "9": 8,   // 80%
+            "10": 9,  // 90%
+            "11": 10  // 100% unfaithful
         };
+        if (!(groupID in unfaithfulCounts)) {
+            groupID = String(Math.floor(Math.random() * 11) + 1);
+        }
+        const unfaithfulCount = unfaithfulCounts[groupID];
 
-        const unfaithfulCount = unfaithfulCounts[groupID] !== undefined 
-            ? unfaithfulCounts[groupID] 
-            : 0;
+        // 2. Video hosting (Archive.org, av_study_20clips)
+        const base = "https://archive.org/download/av_study_20clips/";
+        const TOTAL_CLIPS = 10;
 
-        // 4. Fisher-Yates shuffle algorithm
+        // 3. Fisher-Yates shuffle
         function shuffle(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -105,108 +78,84 @@
             return array;
         }
 
-        // 5. Randomly pick which video sequence slots will use the Unfaithful pool
-        let scenarioIndices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-        shuffle(scenarioIndices);
-        const unfaithfulIndices = scenarioIndices.slice(0, unfaithfulCount);
+        // 4. Choose which clip NUMBERS (1-10) get the unfaithful version.
+        //    Every clip number appears exactly once, as either faithful or unfaithful.
+        const clipNumbers = shuffle(Array.from({ length: TOTAL_CLIPS }, (_, i) => i + 1));
+        const unfaithfulSet = new Set(clipNumbers.slice(0, unfaithfulCount));
 
-        // 6. Assemble the baseline variant selection playlist
-        let finalPlaylist = [];
-        for (let i = 0; i < 10; i++) {
-            if (unfaithfulIndices.includes(i)) {
-                finalPlaylist.push(unfaithfulPool[i]);
-            } else {
-                finalPlaylist.push(faithfulPool[i]);
-            }
+        let clips = [];
+        for (let n = 1; n <= TOTAL_CLIPS; n++) {
+            const isUnfaithful = unfaithfulSet.has(n);
+            clips.push({
+                number: n,
+                type: isUnfaithful ? 'unfaithful' : 'faithful',
+                url: `${base}clip${n}_${isUnfaithful ? 'unfaithful' : 'faithful'}.mp4`
+            });
         }
 
-        // 7. SUPERVISOR LOGIC ENFORCEMENT: Force 1 random unfaithful video to the start, shuffle remaining 9
-        let shuffledPlaylist = [];
-        let chosenUnfaithfulIndices = [];
-        
-        finalPlaylist.forEach((track, index) => {
-            if (unfaithfulPool.includes(track)) chosenUnfaithfulIndices.push(index);
-        });
-
-        if (chosenUnfaithfulIndices.length > 0) {
-            // Select exactly one unfaithful video at random to serve as the baseline opening track
-            const randomUnfaithfulTargetIndex = chosenUnfaithfulIndices[Math.floor(Math.random() * chosenUnfaithfulIndices.length)];
-            const startingUnfaithfulTrack = finalPlaylist[randomUnfaithfulTargetIndex];
-            
-            // Remove the selected opening track from the primary array processing pool
-            finalPlaylist.splice(randomUnfaithfulTargetIndex, 1);
-            
-            // Shuffle the remaining 9 items thoroughly
-            shuffle(finalPlaylist);
-            
-            // Reconstruct the loop sequence with the unfaithful item locked to index 0
-            shuffledPlaylist = [startingUnfaithfulTrack, ...finalPlaylist];
+        // 5. Order: if any unfaithful clips exist, one random unfaithful clip goes first;
+        //    the remaining 9 are shuffled.
+        let playlist;
+        const unfaithfulClips = clips.filter(c => c.type === 'unfaithful');
+        if (unfaithfulClips.length > 0) {
+            const first = unfaithfulClips[Math.floor(Math.random() * unfaithfulClips.length)];
+            const rest = shuffle(clips.filter(c => c !== first));
+            playlist = [first, ...rest];
         } else {
-            // Safe fallback rule for Group 1 (0% unfaithful): normal shuffle of the clean assets
-            shuffledPlaylist = shuffle([...finalPlaylist]);
+            playlist = shuffle([...clips]);
         }
 
-        // --- Cross-tab Tracking Session Preservation Cache ---
-        localStorage.setItem('activeSimulationPlaylist', JSON.stringify(shuffledPlaylist));
-
-        // 8. String tracking encoder for space-free format tracking
-        function extractClipLabel(url) {
-            const fileName = url.split('/').pop().replace('.mp4', '');
-            const number = fileName.match(/\d+/)[0];
-            const type = fileName.includes('unfaithful') ? 'U' : 'F';
-            return `${number}${type}`;
+        // 6. Safety check: each clip number must appear exactly once
+        const uniqueNumbers = new Set(playlist.map(c => c.number));
+        if (playlist.length !== TOTAL_CLIPS || uniqueNumbers.size !== TOTAL_CLIPS) {
+            console.error("Playlist error: duplicate or missing clip numbers", playlist);
         }
 
-        const videoOrderTrackingArray = shuffledPlaylist.map(track => extractClipLabel(track));
+        // 7. Tracking labels, e.g. "3U,7F,1F,..."
+        const videoOrderTrackingArray = playlist.map(c => `${c.number}${c.type === 'unfaithful' ? 'U' : 'F'}`);
 
-        let currentClipIndex = 0;
+        try {
+            localStorage.setItem('activeSimulationPlaylist', JSON.stringify(playlist.map(c => c.url)));
+        } catch (e) { /* storage unavailable; ignore */ }
+
         const player = document.getElementById('simulationPlayer');
         const statusText = document.getElementById('statusBar');
+        let currentClipIndex = 0;
 
-        // 9. Playback loop cycle state manager
+        // 8. Playback loop
         function playNextClip() {
-            if (currentClipIndex < shuffledPlaylist.length) {
-                statusText.innerText = `Displaying Scenario ${currentClipIndex + 1} of ${shuffledPlaylist.length}`;
-                player.src = shuffledPlaylist[currentClipIndex];
+            if (currentClipIndex < playlist.length) {
+                statusText.innerText = `Displaying Scenario ${currentClipIndex + 1} of ${playlist.length}`;
+                player.src = playlist[currentClipIndex].url;
                 player.load();
-                player.play().catch(err => {
-                    console.log("Awaiting manual user initial interaction bypass click.");
+                player.play().catch(() => {
+                    console.log("Awaiting manual user interaction to start playback.");
                 });
             } else {
                 statusText.innerText = "Simulation complete. Returning to evaluation system...";
-
-                // Save final playlist state to localStorage
-                localStorage.setItem('activeSimulationPlaylist', JSON.stringify(shuffledPlaylist));
-
                 const targetReturnURL = "https://qualtricsxm44bc3wkyn.qualtrics.com/jfe/form/SV_b8aFNKmGHwOuj5Q" +
                     `?videoOrder=${encodeURIComponent(videoOrderTrackingArray.join(','))}`;
-
                 setTimeout(() => {
                     window.location.href = targetReturnURL;
                 }, 1500);
             }
         }
 
-        // 10. Local API fallback catch routing
-        function redirectUser(sessionID) {
-            const targetReturnURL = "https://qualtricsxm44bc3wkyn.qualtrics.com/jfe/form/SV_b8aFNKmGHwOuj5Q" +
-                `?videoOrder=${encodeURIComponent(videoOrderTrackingArray.join(','))}`;
-
-            setTimeout(() => {
-                window.location.href = targetReturnURL;
-            }, 1500);
-        }
-
-        // Bind callback listener tracking media end flags
+        // Advance only once per clip, even if 'ended' fires more than once
+        let lastAdvancedFrom = -1;
         player.addEventListener('ended', () => {
+            if (lastAdvancedFrom === currentClipIndex) return;
+            lastAdvancedFrom = currentClipIndex;
             currentClipIndex++;
             playNextClip();
         });
 
-        // Initialize execution on runtime
-        window.onload = () => {
-            playNextClip();
-        };
+        player.addEventListener('error', () => {
+            statusText.innerText = `Could not load scenario ${currentClipIndex + 1}. Please check your connection and refresh.`;
+            console.error("Video failed to load:", player.src);
+        });
+
+        window.onload = playNextClip;
     </script>
 </body>
 </html>
