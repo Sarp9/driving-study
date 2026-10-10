@@ -57,12 +57,14 @@
             "8": 7,   // 70%
             "9": 8,   // 80%
             "10": 9,  // 90%
-            "11": 10  // 100% unfaithful
+            "11": 10, // 100% unfaithful
+            "12": 0   // NO NARRATION: plain clipN.mp4 files (no subtitles at all)
         };
         if (!(groupID in unfaithfulCounts)) {
-            groupID = String(Math.floor(Math.random() * 11) + 1);
+            groupID = String(Math.floor(Math.random() * 12) + 1);
         }
         const unfaithfulCount = unfaithfulCounts[groupID];
+        const noNarration = (groupID === "12");
 
         const base = "https://archive.org/download/av_study_20clips/";
         const TOTAL_CLIPS = 10;
@@ -80,13 +82,14 @@
 
         let clips = [];
         for (let n = 1; n <= TOTAL_CLIPS; n++) {
-            const isUnfaithful = unfaithfulSet.has(n);
+            const type = noNarration ? 'none' : (unfaithfulSet.has(n) ? 'unfaithful' : 'faithful');
             clips.push({
                 number: n,
-                type: isUnfaithful ? 'unfaithful' : 'faithful',
-                url: `${base}clip${n}_${isUnfaithful ? 'unfaithful' : 'faithful'}.mp4`
+                type: type,
+                url: type === 'none' ? `${base}clip${n}.mp4` : `${base}clip${n}_${type}.mp4`
             });
         }
+
         let playlist;
         const unfaithfulClips = clips.filter(c => c.type === 'unfaithful');
         if (unfaithfulClips.length > 0) {
@@ -102,7 +105,8 @@
             console.error("Playlist error: duplicate or missing clip numbers", playlist);
         }
 
-        const videoOrderTrackingArray = playlist.map(c => `${c.number}${c.type === 'unfaithful' ? 'U' : 'F'}`);
+        const typeLetter = { faithful: 'F', unfaithful: 'U', none: 'N' };
+        const videoOrderTrackingArray = playlist.map(c => `${c.number}${typeLetter[c.type]}`);
 
         try {
             localStorage.setItem('activeSimulationPlaylist', JSON.stringify(playlist.map(c => c.url)));
