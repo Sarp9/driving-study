@@ -44,7 +44,6 @@
     <div id="statusBar">Loading clip sequence...</div>
 
     <script>
-        // 1. Condition (group) from the URL, or random 1-11 if missing/invalid
         const urlParams = new URLSearchParams(window.location.search);
         let groupID = urlParams.get('group');
         const unfaithfulCounts = {
@@ -65,11 +64,9 @@
         }
         const unfaithfulCount = unfaithfulCounts[groupID];
 
-        // 2. Video hosting (Archive.org, av_study_20clips)
         const base = "https://archive.org/download/av_study_20clips/";
         const TOTAL_CLIPS = 10;
 
-        // 3. Fisher-Yates shuffle
         function shuffle(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -78,8 +75,6 @@
             return array;
         }
 
-        // 4. Choose which clip NUMBERS (1-10) get the unfaithful version.
-        //    Every clip number appears exactly once, as either faithful or unfaithful.
         const clipNumbers = shuffle(Array.from({ length: TOTAL_CLIPS }, (_, i) => i + 1));
         const unfaithfulSet = new Set(clipNumbers.slice(0, unfaithfulCount));
 
@@ -92,9 +87,6 @@
                 url: `${base}clip${n}_${isUnfaithful ? 'unfaithful' : 'faithful'}.mp4`
             });
         }
-
-        // 5. Order: if any unfaithful clips exist, one random unfaithful clip goes first;
-        //    the remaining 9 are shuffled.
         let playlist;
         const unfaithfulClips = clips.filter(c => c.type === 'unfaithful');
         if (unfaithfulClips.length > 0) {
@@ -105,13 +97,11 @@
             playlist = shuffle([...clips]);
         }
 
-        // 6. Safety check: each clip number must appear exactly once
         const uniqueNumbers = new Set(playlist.map(c => c.number));
         if (playlist.length !== TOTAL_CLIPS || uniqueNumbers.size !== TOTAL_CLIPS) {
             console.error("Playlist error: duplicate or missing clip numbers", playlist);
         }
 
-        // 7. Tracking labels, e.g. "3U,7F,1F,..."
         const videoOrderTrackingArray = playlist.map(c => `${c.number}${c.type === 'unfaithful' ? 'U' : 'F'}`);
 
         try {
@@ -122,7 +112,6 @@
         const statusText = document.getElementById('statusBar');
         let currentClipIndex = 0;
 
-        // 8. Playback loop
         function playNextClip() {
             if (currentClipIndex < playlist.length) {
                 statusText.innerText = `Displaying Scenario ${currentClipIndex + 1} of ${playlist.length}`;
@@ -141,7 +130,6 @@
             }
         }
 
-        // Advance only once per clip, even if 'ended' fires more than once
         let lastAdvancedFrom = -1;
         player.addEventListener('ended', () => {
             if (lastAdvancedFrom === currentClipIndex) return;
